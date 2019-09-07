@@ -1,13 +1,15 @@
-from datetime import datetime
+import datetime
 
 from rest_framework import serializers
 
 from .models import Hotel, Booking
 
+from django.contrib.auth.models import User
+
 
 class HotelsListSerializer(serializers.ModelSerializer):
 	details = serializers.HyperlinkedIdentityField(
-		view_name = "hotel-detail",
+		view_name = "hotel-details",
 		lookup_field = "id",
 		lookup_url_kwarg = "hotel_id"
 		)
@@ -47,7 +49,7 @@ class BookingDetailsSerializer(serializers.ModelSerializer):
 		)
 	class Meta:
 		model = Booking
-		fields = ["hotel", "check_in", 'number_of_nights', 'modify']
+		fields = ["hotel", "check_in", 'number_of_nights', 'modify', 'cancel']
 
 
 class PastBookingDetailsSerializer(serializers.ModelSerializer):
@@ -60,17 +62,18 @@ class PastBookingDetailsSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
 	name = serializers.SerializerMethodField()
 	past_bookings = serializers.SerializerMethodField()
+	
 	class Meta:
 		model = User
-		fields = ["username", "name", "email", "past_bookings"]
+		fields = ["username", "name", "past_bookings"]
 
-	def name(self, obj):
+	def get_name(self, obj):
 		return "%s %s"%(obj.first_name, obj.last_name)
 
 	def get_past_bookings(self, obj):
-		today = datetime.today()
+		today = datetime.date.today()
 		bookings = obj.bookings.filter(check_in__lt=today)
-		return PastBookingDetailsSerializer(bookings).data
+		return PastBookingDetailsSerializer(bookings, many=True).data
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -83,6 +86,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         username = validated_data['username']
         password = validated_data['password']
         new_user = User(username=username)
+        new_user.set_password(password)
         new_user.save()
         return validated_data
 
